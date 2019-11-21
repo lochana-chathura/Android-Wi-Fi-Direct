@@ -259,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
                 f.createNewFile();
                 InputStream inputstream = socket.getInputStream();
                 copyFile(inputstream, new FileOutputStream(f));
-//                serverSocket.close();
+                serverSocket.close();
 //                sendReceive=new SendReceive(socket);
 //                sendReceive.start();
             } catch (IOException e) {
@@ -336,16 +336,10 @@ public class MainActivity extends AppCompatActivity {
                 OutputStream outputStream = socket.getOutputStream();
                 ContentResolver cr = context.getContentResolver();
                 InputStream inputStream = null;
-//                inputStream = cr.openInputStream(Uri.parse("path/to/picture.jpg"));
-//                Toast.makeText(getApplicationContext(), "before pic1" , Toast.LENGTH_SHORT).show();
-                Log.d("d2d","before pic1");
-
-//                inputStream = cr.openInputStream(Uri.parse(Environment.getExternalStorageDirectory()+"/D2D/Picture1.jpg"));
                 inputStream = cr.openInputStream(Uri.fromFile(new File(Environment.getExternalStorageDirectory()+"/D2D/Picture1.jpg")));
                 if (inputStream == null) {
-                    throw new FileNotFoundException("can't open input stream, uri: " );
+                    throw new FileNotFoundException("can't open input stream: "+Environment.getExternalStorageDirectory()+"/D2D/Picture1.jpg");
                 }
-//                Toast.makeText(getApplicationContext(), "after pic1" , Toast.LENGTH_SHORT).show();
                 while ((len = inputStream.read(buf)) != -1) {
                     outputStream.write(buf, 0, len);
                 }
