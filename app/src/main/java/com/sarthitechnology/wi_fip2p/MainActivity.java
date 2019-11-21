@@ -1,19 +1,23 @@
 package com.sarthitechnology.wi_fip2p;
 
 import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.IntentFilter;
+import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.os.StrictMode;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -23,6 +27,9 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,6 +37,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -91,6 +99,7 @@ public class MainActivity extends AppCompatActivity {
                 {
                     wifiManager.setWifiEnabled(false);
                     btnOnOff.setText("ON");
+
                 }else {
                     wifiManager.setWifiEnabled(true);
                     btnOnOff.setText("OFF");
@@ -212,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
             }else if(wifiP2pInfo.groupFormed)
             {
                 connectionStatus.setText("Client");
-                clientClass=new ClientClass(groupOwnerAddress);
+                clientClass=new ClientClass(groupOwnerAddress,getApplicationContext());
                 clientClass.start();
             }
         }
@@ -239,8 +248,20 @@ public class MainActivity extends AppCompatActivity {
             try {
                 serverSocket=new ServerSocket(8888);
                 socket=serverSocket.accept();
-                sendReceive=new SendReceive(socket);
-                sendReceive.start();
+                final File f = new File(Environment.getExternalStorageDirectory() + "/D2D"
+                        + "/" + System.currentTimeMillis()
+                        + ".jpg");
+
+                File dirs = new File(f.getParent());
+                if (!dirs.exists())
+                    dirs.mkdirs();
+                    dirs.mkdirs();
+                f.createNewFile();
+                InputStream inputstream = socket.getInputStream();
+                copyFile(inputstream, new FileOutputStream(f));
+//                serverSocket.close();
+//                sendReceive=new SendReceive(socket);
+//                sendReceive.start();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -296,21 +317,63 @@ public class MainActivity extends AppCompatActivity {
         Socket socket;
         String hostAdd;
 
-        public  ClientClass(InetAddress hostAddress)
+        int len;
+        byte buf[]  = new byte[1024];
+
+        Context context;
+
+        public  ClientClass(InetAddress hostAddress,Context context)
         {
             hostAdd=hostAddress.getHostAddress();
             socket=new Socket();
+            this.context=context;
         }
 
         @Override
         public void run() {
             try {
                 socket.connect(new InetSocketAddress(hostAdd,8888),500);
-                sendReceive=new SendReceive(socket);
-                sendReceive.start();
+                OutputStream outputStream = socket.getOutputStream();
+                ContentResolver cr = context.getContentResolver();
+                InputStream inputStream = null;
+//                inputStream = cr.openInputStream(Uri.parse("path/to/picture.jpg"));
+//                Toast.makeText(getApplicationContext(), "before pic1" , Toast.LENGTH_SHORT).show();
+                Log.d("d2d","before pic1");
+
+//                inputStream = cr.openInputStream(Uri.parse(Environment.getExternalStorageDirectory()+"/D2D/Picture1.jpg"));
+                inputStream = cr.openInputStream(Uri.fromFile(new File(Environment.getExternalStorageDirectory()+"/D2D/Picture1.jpg")));
+                if (inputStream == null) {
+                    throw new FileNotFoundException("can't open input stream, uri: " );
+                }
+//                Toast.makeText(getApplicationContext(), "after pic1" , Toast.LENGTH_SHORT).show();
+                while ((len = inputStream.read(buf)) != -1) {
+                    outputStream.write(buf, 0, len);
+                }
+                outputStream.close();
+                inputStream.close();
+//                sendReceive=new SendReceive(socket);
+//                sendReceive.start();
             } catch (IOException e) {
+//                Toast.makeText(getApplicationContext(), e.getMessage() , Toast.LENGTH_SHORT).show();
                 e.printStackTrace();
             }
         }
+    }
+
+    public static boolean copyFile(InputStream inputStream, OutputStream out) {
+        byte buf[] = new byte[1024];
+        int len;
+        try {
+            while ((len = inputStream.read(buf)) != -1) {
+                out.write(buf, 0, len);
+
+            }
+            out.close();
+            inputStream.close();
+        } catch (IOException e) {
+            Log.d("inside copyFile", e.toString());
+            return false;
+        }
+        return true;
     }
 }
