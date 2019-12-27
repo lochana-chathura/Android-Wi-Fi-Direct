@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Wi-FiP2P.iml" filepath="$PROJECT_DIR$/Wi-FiP2P.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Android-Wi-Fi-Direct.iml" filepath="$PROJECT_DIR$/Android-Wi-Fi-Direct.iml" />
+      <module fileurl="file://$PROJECT_DIR$/app/Android-Wi-Fi-Direct-app.iml" filepath="$PROJECT_DIR$/app/Android-Wi-Fi-Direct-app.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>
