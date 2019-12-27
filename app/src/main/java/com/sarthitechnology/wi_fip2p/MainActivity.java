@@ -11,6 +11,7 @@ import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
@@ -42,6 +43,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+    private static ReceiveTask receiveTask;
+    private static SendTask sendTask;
 
     Button btnOnOff, btnDiscover, btnSend;
     ListView listView;
@@ -70,8 +73,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         //TODO: change thread policy to default
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-        StrictMode.setThreadPolicy(policy);
+//        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+//        StrictMode.setThreadPolicy(policy);
         initialWork();
         exqListener();
     }
@@ -145,23 +148,23 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        btnSend.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                String msg=writeMsg.getText().toString();
-                sendReceive.write(msg.getBytes());
-            }
-        });
+//        btnSend.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                String msg=writeMsg.getText().toString();
+//                sendReceive.write(msg.getBytes());
+//            }
+//        });
     }
 
     private void initialWork() {
         btnOnOff=(Button) findViewById(R.id.onOff);
         btnDiscover=(Button) findViewById(R.id.discover);
-        btnSend=(Button) findViewById(R.id.sendButton);
+//        btnSend=(Button) findViewById(R.id.sendButton);
         listView=(ListView) findViewById(R.id.peerListView);
         read_msg_box=(TextView) findViewById(R.id.readMsg);
         connectionStatus=(TextView) findViewById(R.id.connectionStatus);
-        writeMsg=(EditText) findViewById(R.id.writeMsg);
+//        writeMsg=(EditText) findViewById(R.id.writeMsg);
 
         wifiManager= (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
 
@@ -216,13 +219,17 @@ public class MainActivity extends AppCompatActivity {
             if(wifiP2pInfo.groupFormed && wifiP2pInfo.isGroupOwner)
             {
                 connectionStatus.setText("Host");
-                serverClass=new ServerClass();
-                serverClass.start();
+                MainActivity.receiveTask=new ReceiveTask();
+                MainActivity.receiveTask.execute();
+//                serverClass=new ServerClass();
+//                serverClass.start();
             }else if(wifiP2pInfo.groupFormed)
             {
                 connectionStatus.setText("Client");
-                clientClass=new ClientClass(groupOwnerAddress,getApplicationContext());
-                clientClass.start();
+                MainActivity.sendTask=new SendTask();
+                MainActivity.sendTask.execute(groupOwnerAddress,getApplicationContext());
+//                clientClass=new ClientClass(groupOwnerAddress,getApplicationContext());
+//                clientClass.start();
             }
         }
     };
@@ -260,8 +267,6 @@ public class MainActivity extends AppCompatActivity {
                 InputStream inputstream = socket.getInputStream();
                 copyFile(inputstream, new FileOutputStream(f));
                 serverSocket.close();
-//                sendReceive=new SendReceive(socket);
-//                sendReceive.start();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -336,19 +341,16 @@ public class MainActivity extends AppCompatActivity {
                 OutputStream outputStream = socket.getOutputStream();
                 ContentResolver cr = context.getContentResolver();
                 InputStream inputStream = null;
-                inputStream = cr.openInputStream(Uri.fromFile(new File(Environment.getExternalStorageDirectory()+"/D2D/Picture1.jpg")));
+                inputStream = cr.openInputStream(Uri.fromFile(new File(Environment.getExternalStorageDirectory()+"/D2D/TestFile.jpg")));
                 if (inputStream == null) {
-                    throw new FileNotFoundException("can't open input stream: "+Environment.getExternalStorageDirectory()+"/D2D/Picture1.jpg");
+                    throw new FileNotFoundException("can't open input stream: "+Environment.getExternalStorageDirectory()+"/D2D/TestFile.jpg");
                 }
                 while ((len = inputStream.read(buf)) != -1) {
                     outputStream.write(buf, 0, len);
                 }
                 outputStream.close();
                 inputStream.close();
-//                sendReceive=new SendReceive(socket);
-//                sendReceive.start();
             } catch (IOException e) {
-//                Toast.makeText(getApplicationContext(), e.getMessage() , Toast.LENGTH_SHORT).show();
                 e.printStackTrace();
             }
         }
@@ -370,4 +372,78 @@ public class MainActivity extends AppCompatActivity {
         }
         return true;
     }
-}
+
+    class ReceiveTask extends AsyncTask<String, String,String> {
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            System.out.println("RECEIVETASK DONE");
+        }
+
+        @Override
+        protected String doInBackground(String... strings) {
+            Socket socket;
+            ServerSocket serverSocket;
+
+            try{
+                serverSocket=new ServerSocket(8888);
+                socket=serverSocket.accept();
+                final File f = new File(Environment.getExternalStorageDirectory() + "/D2D"
+                        + "/" + System.currentTimeMillis()
+                        + ".jpg");
+
+                File dirs = new File(f.getParent());
+                if (!dirs.exists())
+                    dirs.mkdirs();
+                dirs.mkdirs();
+                f.createNewFile();
+                InputStream inputstream = socket.getInputStream();
+                copyFile(inputstream, new FileOutputStream(f));
+                serverSocket.close();
+            }catch (IOException e){
+                System.out.println("IO Exception");
+            }
+          return null;
+        }
+    }
+    class SendTask extends AsyncTask<Object, Void, Void> {
+        Socket socket;
+        String hostAdd;
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            System.out.println("SENDTASK DONE");
+        }
+
+        int len;
+        byte buf[]  = new byte[1024];
+
+        Context context;
+        @Override
+        protected Void doInBackground(Object... objects) {
+            socket= new Socket();
+            hostAdd=((InetAddress)objects[0]).getHostAddress();
+            context = (Context) objects[1];
+            try {
+                socket.connect(new InetSocketAddress(hostAdd,8888),500);
+                OutputStream outputStream = socket.getOutputStream();
+                ContentResolver cr = context.getContentResolver();
+                InputStream inputStream = null;
+                inputStream = cr.openInputStream(Uri.fromFile(new File(Environment.getExternalStorageDirectory()+"/D2D/TestFile.jpg")));
+                if (inputStream == null) {
+                    throw new FileNotFoundException("can't open input stream: "+Environment.getExternalStorageDirectory()+"/D2D/TestFile.jpg");
+                }
+                while ((len = inputStream.read(buf)) != -1) {
+                    outputStream.write(buf, 0, len);
+                }
+                outputStream.close();
+                inputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+    }
+
+    }
